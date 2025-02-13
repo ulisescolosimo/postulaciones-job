@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "./components/Header";
+import { Toaster } from "react-hot-toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,10 +22,13 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-900 min-h-screen`}
       >
+        <Toaster position="bottom-right" toastOptions={{ duration: 4000 }} />
         <Header />
-        {children}
+        
+        {/* Agregar padding-top al contenido */}
+        <main className="pt-[72px]">{children}</main>
       </body>
     </html>
   );

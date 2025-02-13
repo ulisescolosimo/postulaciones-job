@@ -1,45 +1,42 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/app/utils/supabaseClient';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from "react";
+import { supabase } from "@/app/utils/supabaseClient";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 export default function CompanyDashboard() {
   const [jobOffers, setJobOffers] = useState([]);
-  const [applications, setApplications] = useState([]);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const fetchJobOffers = async () => {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const { data, error: userError } = await supabase.auth.getUser();
+      const user = data?.user;
 
-      if (userError) {
-        setError(userError.message);
+      if (userError || !user) {
+        setError("No se pudo obtener el usuario.");
         setLoading(false);
         return;
       }
 
       const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
         .single();
 
-      if (profileError || profile.role !== 'empresa') {
-        router.push('/auth/login');
+      if (profileError || profile?.role !== "empresa") {
+        router.push("/auth/login");
         return;
       }
 
       const { data: jobData, error: jobError } = await supabase
-        .from('job_offers')
-        .select('id, title, description, created_at')
-        .eq('company_id', user.id);
+        .from("job_offers")
+        .select("id, title, description, created_at")
+        .eq("company_id", user.id);
 
       if (jobError) {
         setError(jobError.message);
@@ -53,132 +50,83 @@ export default function CompanyDashboard() {
     fetchJobOffers();
   }, [router]);
 
-  // Nueva función para obtener datos del usuario
-  const fetchUserData = async (userId) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, email, role')
-      .single();
-
-    if (error) {
-      return null;
-    }
-
-    return data;
-  };
-
-  // Modificar para incluir detalles del usuario en las postulaciones
-  const fetchApplications = async (jobId) => {
-    const { data, error } = await supabase
-      .from('applications')
-      .select('user_id, created_at')
-      .eq('job_id', jobId);
-
-    if (error) {
-      alert(`Error al obtener postulaciones: ${error.message}`);
-      return [];
-    }
-
-    // Mapear los datos de las aplicaciones con la información del usuario
-    const detailedApplications = await Promise.all(
-      data.map(async (app) => {
-        const userData = await fetchUserData(app.user_id);
-        return {
-          ...app,
-          user: userData, // Agregamos la información del usuario
-        };
-      })
-    );
-
-    return detailedApplications;
-  };
-
-  const handleViewApplications = async (jobId) => {
-    const applications = await fetchApplications(jobId);
-    setApplications(applications);
-    setModalOpen(true); // Abrimos el modal con las postulaciones
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-    setApplications([]);
-  };
-
   if (loading) {
-    return <div className="text-white text-center">Cargando...</div>;
+    return (
+      <motion.div
+        className="flex justify-center items-center h-screen bg-gray-900"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <motion.div 
+          className="text-white text-lg font-semibold flex space-x-1"
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{ repeat: Infinity, duration: 1.5 }}
+        >
+          <span>Cargando</span>
+          <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.2 }}>.</motion.span>
+          <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.4 }}>.</motion.span>
+          <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.6 }}>.</motion.span>
+        </motion.div>
+      </motion.div>
+    );
   }
-
-  if (error) {
-    return <div className="text-red-500 text-center">{error}</div>;
-  }
+  
+  if (error) return <div className="text-red-500 text-center">{error}</div>;
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold text-white mb-4">Tus Ofertas de Trabajo</h1>
-      {jobOffers.length === 0 ? (
-        <p className="text-white">No has creado ninguna oferta de trabajo.</p>
-      ) : (
-        <div className="grid gap-4">
-          {jobOffers.map((job) => (
-            <div
-              key={job.id}
-              className="p-4 bg-gray-800 rounded shadow-md text-white"
-            >
-              <h2 className="text-lg font-bold">{job.title}</h2>
-              <p className="text-sm">{job.description}</p>
-              <p className="text-xs text-gray-400">
-                Publicado: {new Date(job.created_at).toLocaleString()}
-              </p>
-              <button
-                onClick={() => handleViewApplications(job.id)}
-                className="mt-2 px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
-              >
-                Ver Postulaciones
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+    <div className="flex flex-col min-h-screen">
+      {/* 📌 Asegurarnos de que el header esté separado y el contenido inicie abajo */}
+      <motion.div 
+        className="flex flex-col flex-grow p-6 bg-gray-900 mt-20" // 👈 `mt-20` para evitar superposición con el header
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <motion.h1 
+          className="text-3xl font-bold text-white mb-6"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          📢 Tus Ofertas de Trabajo
+        </motion.h1>
 
-      {/* Modal para mostrar postulaciones */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg shadow-lg p-6 w-96">
-            <h2 className="text-xl font-bold text-white mb-4">
-              Postulaciones Recibidas
-            </h2>
-            {applications.length === 0 ? (
-              <p className="text-white">No hay postulaciones para esta oferta.</p>
-            ) : (
-              <ul className="space-y-4">
-                {applications.map((app) => (
-                  <li
-                    key={app.user_id}
-                    className="p-4 bg-gray-700 rounded shadow-md"
-                  >
-                    <p className="text-sm text-white">
-                      <strong>Email:</strong> {app.user?.email || 'No disponible'}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      <strong>Rol:</strong> {app.user?.role || 'No disponible'}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      <strong>Fecha de aplicación:</strong>{' '}
-                      {new Date(app.created_at).toLocaleString()}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <button
-              onClick={closeModal}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              Cerrar
-            </button>
+        {jobOffers.length === 0 ? (
+          <motion.p 
+            className="text-gray-400 text-lg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            Aún no has publicado ninguna oferta. 🚀
+          </motion.p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl">
+            {jobOffers.map((job, index) => (
+              <motion.div 
+                key={job.id} 
+                className="p-6 bg-gray-800 bg-opacity-80 backdrop-blur-md rounded-lg shadow-md border border-gray-700 hover:border-blue-500 transition-all duration-300"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <h2 className="text-xl font-semibold text-white">{job.title}</h2>
+                <p className="text-gray-300 text-sm mt-2">{job.description}</p>
+                <p className="text-gray-500 text-xs mt-2">
+                  📅 Publicado: {new Date(job.created_at).toLocaleString()}
+                </p>
+                <motion.button
+                  onClick={() => router.push(`/dashboard/company/job/${job.id}`)}
+                  className="mt-4 w-full bg-blue-600 py-2 rounded-md text-white font-semibold shadow-lg hover:bg-blue-700 transition-all duration-200"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  📄 Ver Postulaciones
+                </motion.button>
+              </motion.div>
+            ))}
           </div>
-        </div>
-      )}
+        )}
+      </motion.div>
     </div>
   );
 }

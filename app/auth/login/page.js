@@ -3,18 +3,20 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/app/utils/supabaseClient';
+import { toast } from 'react-hot-toast';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    // Iniciar sesión en Supabase
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -22,26 +24,38 @@ export default function Login() {
 
     if (error) {
       setError(error.message);
+      setLoading(false);
       return;
     }
 
-    // Obtener el rol del usuario después del login
+    const user = data.session?.user;
+
+    if (!user || !user.id) {
+      setError('No se pudo obtener la sesión del usuario.');
+      setLoading(false);
+      return;
+    }
+
+    // Obtener el perfil del usuario desde Supabase
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
-      .eq('id', data.user.id)
+      .eq('id', user.id) // IMPORTANTE: Validar que el id es correcto
       .single();
 
-    if (profileError) {
-      setError(profileError.message);
+    if (profileError || !profile) {
+      setError(profileError?.message || 'No se encontró el perfil del usuario.');
+      setLoading(false);
       return;
     }
 
-    // Redirigir según el rol
+    toast.success('Inicio de sesión exitoso.');
+
+    // Redirección basada en el rol
     if (profile.role === 'empresa') {
-      router.push('/dashboard/company'); // Dashboard de empresas
+      router.push('/dashboard/company');
     } else {
-      router.push('/dashboard/user'); // Dashboard de usuarios
+      router.push('/dashboard/user');
     }
   };
 
@@ -69,9 +83,10 @@ export default function Login() {
           />
           <button
             type="submit"
-            className="w-full p-3 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-3 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            disabled={loading}
           >
-            Iniciar Sesión
+            {loading ? 'Cargando...' : 'Iniciar Sesión'}
           </button>
         </form>
         <p className="mt-6 text-center text-gray-400">
